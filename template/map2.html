@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    html,
+    body,
+    div {
+      width: 100%;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <svg id="map" width="2000" height="2000" style="background-color:#cccccc" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- <polygon points="220,100 300,210 170,250 123,234 0,0" style="fill:#cccccc;
+      stroke:#000000;stroke-width:1" /> -->
+
+  </svg>
+
+
+
+
+  <input id="input" />
+  <button id="button1">确定</button>
+  <button id="button2">撤销</button>
+  <button id="button3">停止</button>
+  <button id="button4">启动</button>
+  <button id="button5">全部启动</button>
+  <script>
+    const map = document.getElementById("map");
+    const input = document.getElementById("input")
+    const button1 = document.getElementById("button1")
+    const button2 = document.getElementById("button2")
+    const button3 = document.getElementById("button3")
+    const button4 = document.getElementById("button4")
+    const button5 = document.getElementById("button5")
+    let pool //湖轮廓
+    const arrList = [] //dom节点
+    let node = [] //像素坐标点
+
+
+
+
+
+
+    //初始化
+    window.onload = function () {
+
+      //请求湖泊轮廓像素点接口
+      fetch("http://192.168.199.171:8899/pool_cnts", {
+        method: "GET",
+        mode: 'cors',
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then(data => {
+          draw(map, data.data, "fill:aqua;stroke:#000000; stroke - width: 1")
+
+        });
+
+      fetch("http://192.168.199.171:8899/online_ship", {
+        method: "GET",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+
+      }).then((response) => {
+        return response.json();
+      })
+        .then(data => {
+          const length = data.dump_energy.length
+          const shipList = []
+          for (i = 0; i < length; i++) {
+            const ele = {}
+            ele.dump_energy = data.dump_energy[i]
+            ele.speed = data.speed[i]
+            ele.config_path = data.config_path[i]
+            ele.ids = data.ids[i]
+            ele.pix_postion = data.pix_postion[i]
+            shipList.push(ele)
+            var oDiv = document.createElement('div');
+            oDiv.style.left = ele.pix_postion[0] + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+
+            oDiv.style.top = ele.pix_postion[1] + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+
+            oDiv.style.backgroundColor = '#FF0000'; // 设置边框
+
+            oDiv.style.fontSize = '12px'; // 设置边框
+
+            oDiv.style.textAlign = 'center'; // 设置边框
+
+            oDiv.style.color = '#fff'; // 设置边框
+
+            oDiv.innerHTML = `${ele.ids}`
+
+            oDiv.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+
+            oDiv.style.width = '15px'; // 指定宽度
+
+            oDiv.style.height = '15px'; // 指定高度
+            console.log(oDiv)
+            document.body.appendChild(oDiv);
+            drawShipList(ele)
+          }
+
+          console.log(data.dump_energy)
+          console.log(data.speed)
+          console.log(data.config_path)
+          console.log(data.ids)
+          console.log(data.pix_postion)
+          console.log(shipList)
+
+        });
+
+      //点击坐标
+      map.onmousedown = function (ev) {
+
+        var oEvent = ev || event;
+
+        var oDiv = document.createElement('div');
+
+
+
+        // console.log(arrList)
+
+        oDiv.style.left = oEvent.offsetX + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+
+        oDiv.style.top = oEvent.offsetY + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+
+        oDiv.style.border = '1px solid #FF0000'; // 设置边框
+
+        oDiv.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+
+        oDiv.style.width = '1px'; // 指定宽度
+
+        oDiv.style.height = '1px'; // 指定高度
+
+        arrList.push(oDiv)
+
+        node.push([oDiv.style.left, oDiv.style.top])
+
+        document.body.appendChild(oDiv);
+
+      }
+
+    }
+
+
+    map.addEventListener("click", (e) => {
+      // input.value = `x:${e.offsetX} y:${e.offsetY}`
+      console.log(e.clientX, e.clientY, e.offsetX, e.offsetY)
+    })
+
+    function draw(parent, node, style) {
+
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', node);
+      polygon.setAttribute('style', style);
+      parent.appendChild(polygon);
+
+    }
+
+    function drawShipList(ele) {
+      var oDiv = document.createElement('div');
+
+
+      oDiv.style.backgroundColor = '#FF0000'; // 设置边框
+
+      oDiv.style.fontSize = '12px'; // 设置边框
+
+      // oDiv.style.textAlign = 'center'; // 设置边框
+
+      oDiv.style.color = '#fff'; // 设置边框
+
+      oDiv.innerHTML = `${ele.ids}  电量${ele.dump_energy} 速度${ele.speed} 是否配置${ele.config_path}`
+
+      oDiv.style.width = '800px'; // 指定宽度
+
+      oDiv.style.height = '50px'; // 指定高度
+      console.log(oDiv)
+      document.body.appendChild(oDiv);
+    }
+
+
+
+
+
+
+
+
+    button1.onclick = function () {
+
+      fetch("http://192.168.199.171:8899/ship_path", {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "id": input.value,
+          "data": [...node]
+        })
+      }).then(res => {
+        console.log(res)
+
+        location.reload()
+        //alert("成功")
+
+
+      })
+
+    }
+    button2.onclick = function () {
+      node = []
+      const div = arrList.pop()
+
+      const res = document.body.removeChild(div)
+
+      arrList.forEach(ele => {
+        ele = [ele.style.left, ele.style.top]
+        node.push(ele)
+      })
+      console.log(node)
+      if (res) { alert("成功") } else { alert("失败") }
+    }
+
+    button3.onclick = function () {
+      fetch("http://192.168.199.171:8899/ship_stop", {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "id": input.value.split(" ")
+
+        })
+      }).then(() => {
+        location.reload()
+      })
+
+    }
+    button4.onclick = function () {
+      fetch("http://192.168.199.171:8899/ship_start", {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "id": input.value.split(" ")
+        })
+      }).then(() => {
+        location.reload()
+      })
+
+    }
+
+    button5.onclick = function () {
+      fetch("http://192.168.199.171:8899/send_path", {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+
+        })
+      }).then(() => {
+        //location.reload()
+      })
+
+    }
+
+
+
+
+
+
+
+  </script>
+</body>
+
+</html>
