@@ -10,25 +10,31 @@ import os
 import json
 import time
 import threading
-app = Flask(__name__)
 
-CORS(app)
+# CORS(app,supports_credentials=False)
 
 
 app = Flask(__name__, template_folder='template')
-
+CORS(app, resources=r'/*')
+#测试使用
+b_test=True
 
 @app.route('/')
 def index():
-    return render_template('vue-map.html')
-    # return render_template('map-1.html')
+    # return render_template('vue-map.html')
+    return render_template('map2.html')
+
+
 
 # 湖轮廓像素位置
 @app.route('/pool_cnts', methods=['GET', 'POST'])
 def pool_cnts():
     print(request)
     print("request.url", request.url)
-    print("request.args", request.args)
+    print("request.data", request.data)
+    if b_test:
+        return json.dumps({'data':'391,599 745,539 872,379 896,254 745,150 999,63 499,0 217,51  66,181 0,470'})
+
     # 失败返回提示信息
     if ship_obj.pix_cnts is None:
         return '初始经纬度像素点未生成'
@@ -48,6 +54,22 @@ def pool_cnts():
 def online_ship():
     print(request)
     print('request.data', request.data)
+    if b_test:
+        return_data = {
+            # 船号
+            "ids": [1, 2, 8,10,18],
+            # 船像素信息数组
+            "pix_postion": [[783, 1999], [132, 606], [52, 906], [0, 1569]],
+        # 船是否配置行驶点 1为已经配置  0位还未配置
+        "config_path": [1, 1, 0, 1],
+        # 船剩余电量0-100整数
+        "dump_energy": [90, 37, 80, 60],
+        # 船速度 单位：m/s  浮点数
+        "speed": [3.5, 2.0, 1.0, 5.0]
+
+        }
+        return json.dumps(return_data)
+
     data = json.loads(request.data)
     ship_obj.click_pix_points = data['data']
     return 'confirm'
@@ -69,15 +91,26 @@ def send_path():
     return 'send_path'
 
 # 控制船运动
-@app.route('/ship_control', methods=['GET', 'POST'])
-def ship_control():
+@app.route('/ship_start', methods=['GET', 'POST'])
+def ship_start():
     print(request)
     print(request)
     print('request.data', request.data)
-    data = json.loads(request.data)
-    for i in enumerate(data['ids']):
-        ship_obj.ship_control_list.update({data['ids'][i]:data['control_data'][i]})
-    return 'ship_control'
+    # data = json.loads(request.data)
+    # for i in enumerate(data['ids']):
+    #     ship_obj.ship_control_list.update({data['ids'][i]:data['control_data'][i]})
+    return 'ship_start'
+
+# 控制船运动
+@app.route('/ship_stop', methods=['GET', 'POST'])
+def ship_stop():
+    print(request)
+    print(request)
+    print('request.data', request.data)
+    # data = json.loads(request.data)
+    # for i in enumerate(data['ids']):
+    #     ship_obj.ship_control_list.update({data['ids'][i]:data['control_data'][i]})
+    return 'ship_stop'
 
 class Ship:
 
@@ -94,18 +127,23 @@ class Ship:
         self.ship_control_list={}
 
         # 像素位置与经纬度
-        self.ship_pix_position = {}
-        self.ship_lng_lat_position = {}
+        self.ship_pix_position_dict = {}
+        self.ship_lng_lat_position_dict = {}
         # 用户点击像素点
-        self.click_pix_points = {}
+        self.click_pix_points_dict = {}
         # 用户点击经纬度点
-        self.click_lng_lats = {}
+        self.click_lng_lats_dict = {}
+        # 船剩余电量
+        self.ship_dump_energy_dict={}
+        # 船速度
+        self.ship_speed_dict = {}
         # 是否发送所有路径到船
         self.b_send_path = False
 
     # 必须放在主线程中
     @staticmethod
     def run_flask():
+        # app.run(host='192.168.199.171', port=5500, debug=True)
         app.run(host='0.0.0.0', port=8899, debug=True)
 
     # 经纬度转像素
@@ -213,19 +251,19 @@ class Ship:
             timeout=config.com_timeout,
             logger=self.com_logger)
         while True:
-            if len(ship_obj.click_pix_points) <= 0 or not ship_obj.b_send_path:
+            if len(ship_obj.click_pix_points_dict) <= 0 or not ship_obj.b_send_path:
                 time.sleep(1)
             else:
                 # 像素转换为经纬度
-                for k, v in ship_obj.click_pix_points.items():
+                for k, v in ship_obj.click_pix_points_dict.items():
                     lng = round(
                         (self.left_up_x + v[0] * self.scale_w) / 1000000.0, 6)
                     lat = round(
                         (self.left_up_y + v[1] * self.scale_h) / 1000000.0, 6)
-                    ship_obj.click_lng_lats.update({k: [lng, lat]})
+                    ship_obj.click_lng_lats_dict.update({k: [lng, lat]})
                 # 转换为发送数据
                 com_data_send = 'BB'
-                for k, v in ship_obj.click_lng_lats.items():
+                for k, v in ship_obj.click_lng_lats_dict.items():
                     com_data_send += com_data_send + '%03d,' % k + \
                         str(v[0]) + ',' + str(v[1]) + '#'
                 com_data_send += com_data_send + '$'
@@ -248,11 +286,16 @@ class Ship:
                 self.online_ship_list.append(ship_id)
                 com_lng_lat = [float(get_com_data_list[1]),float(get_com_data_list[2])]
                 # 更新经纬度
-                self.ship_lng_lat_position.update({ship_id:com_lng_lat})
+                self.ship_lng_lat_position_dict.update({ship_id:com_lng_lat})
                 # 经纬度转像素
                 com_pix = self.lng_lat_to_pix(com_lng_lat)
                 # 更新像素
-                self.ship_pix_position.update({ship_id:com_pix})
+                self.ship_pix_position_dict.update({ship_id:com_pix})
+                # 更新电量
+                self.ship_dump_energy_dict.update({ship_id:int(get_com_data_list[3])})
+                # 更新速度
+                self.ship_speed_dict.update({ship_id:int(get_com_data_list[4])})
+
             except Exception as e:
                 self.logger.error({'com_data_read error': e})
 
