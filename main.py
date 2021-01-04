@@ -17,13 +17,12 @@ import threading
 app = Flask(__name__, template_folder='template')
 CORS(app, resources=r'/*')
 #测试使用
-b_test=True
+b_test=False
 
 @app.route('/')
 def index():
     # return render_template('vue-map.html')
     return render_template('map2.html')
-
 
 
 # 湖轮廓像素位置
@@ -34,20 +33,20 @@ def pool_cnts():
     print("request.data", request.data)
     if b_test:
         return json.dumps({'data':'391,599 745,539 872,379 896,254 745,150 999,63 499,0 217,51  66,181 0,470'})
-
-    # 失败返回提示信息
-    if ship_obj.pix_cnts is None:
-        return '初始经纬度像素点未生成'
-    #{'data':'391, 599 745, 539 872, 379 896, 254 745, 150 999, 63 499, 0 217, 51  66, 181 0, 470'}
     else:
-        str_pix_points = ''
-        for index, value in enumerate(ship_obj.pix_cnts):
-            if index == len(ship_obj.pix_cnts) - 1:
-                str_pix_points += str(value[0]) + ',' + str(value[1])
-            else:
-                str_pix_points += str(value[0]) + ',' + str(value[1]) + ' '
-        return_json = json.dumps({'data': str_pix_points})
-        return return_json
+    # 失败返回提示信息
+        if ship_obj.pix_cnts is None:
+            return '初始经纬度像素点未生成'
+        #{'data':'391, 599 745, 539 872, 379 896, 254 745, 150 999, 63 499, 0 217, 51  66, 181 0, 470'}
+        else:
+            str_pix_points = ''
+            for index, value in enumerate(ship_obj.pix_cnts):
+                if index == len(ship_obj.pix_cnts) - 1:
+                    str_pix_points += str(value[0]) + ',' + str(value[1])
+                else:
+                    str_pix_points += str(value[0]) + ',' + str(value[1]) + ' '
+            return_json = json.dumps({'data': str_pix_points})
+            return return_json
 
 # 获取在线船列表
 @app.route('/online_ship', methods=['GET', 'POST'])
@@ -60,19 +59,30 @@ def online_ship():
             "ids": [1, 2, 8,10,18],
             # 船像素信息数组
             "pix_postion": [[783, 1999], [132, 606], [52, 906], [0, 1569]],
-        # 船是否配置行驶点 1为已经配置  0位还未配置
-        "config_path": [1, 1, 0, 1],
-        # 船剩余电量0-100整数
-        "dump_energy": [90, 37, 80, 60],
-        # 船速度 单位：m/s  浮点数
-        "speed": [3.5, 2.0, 1.0, 5.0]
+            # 船是否配置行驶点 1为已经配置  0位还未配置
+            "config_path": [1, 1, 0, 1],
+            # 船剩余电量0-100整数
+            "dump_energy": [90, 37, 80, 60],
+            # 船速度 单位：m/s  浮点数
+            "speed": [3.5, 2.0, 1.0, 5.0]
 
         }
         return json.dumps(return_data)
-
-    data = json.loads(request.data)
-    ship_obj.click_pix_points = data['data']
-    return 'confirm'
+    else:
+        return_data = {
+            # 船号
+            "ids": ship_obj.online_ship_list,
+            # 船像素信息数组
+            "pix_postion": [ship_obj.ship_pix_position_dict.get(i) for i in ship_obj.online_ship_list],
+            # 船是否配置行驶点 1为已经配置  0位还未配置
+            "config_path": [1 if i in ship_obj.config_ship_lng_lats_dict else 0 for i in ship_obj.online_ship_list],
+            # 船剩余电量0-100整数
+            "dump_energy": [ship_obj.ship_dump_energy_dict.get(i) for i in ship_obj.online_ship_list],
+            # 船速度 单位：m/s  浮点数
+            "speed": [ship_obj.ship_speed_dict.get(i) for i in ship_obj.online_ship_list]
+        }
+        print('online_ship data',return_data)
+        return json.dumps(return_data)
 
 # 发送一条船配置路径
 @app.route('/ship_path', methods=['GET', 'POST'])
@@ -80,8 +90,21 @@ def ship_path():
     print(request)
     print('request.data', request.data)
     data = json.loads(request.data)
-    ship_obj.click_pix_points = data['data']
-    return 'confirm'
+    if ship_obj.pix_cnts is None:
+        return '还没有湖，别点'
+    id = int(data['id'])
+    if data['data'][0][0].endswith('px'):
+        click_pix_points =  [[int(i[0][:-2]),int(i[1][:-2])] for i in data['data']]
+    else:
+        click_pix_points =  [[int(i[0]),int(i[1])] for i in data['data']]
+    click_lng_lats = []
+    for point in click_pix_points:
+        in_cnt = cv2.pointPolygonTest(np.array(ship_obj.pix_cnts), (point[0], point[1]), False)
+        if in_cnt >= 0:
+            click_lng_lat = ship_obj.pix_to_lng_lat(point)
+            click_lng_lats.append(click_lng_lat)
+    ship_obj.config_ship_lng_lats_dict.update({id:click_lng_lats})
+    return 'ship_path'
 
 # 发送所有配置路径到船
 @app.route('/send_path', methods=['GET', 'POST'])
@@ -90,61 +113,88 @@ def send_path():
     ship_obj.b_send_path = True
     return 'send_path'
 
-# 控制船运动
+# 控制船启动
 @app.route('/ship_start', methods=['GET', 'POST'])
 def ship_start():
     print(request)
-    print(request)
     print('request.data', request.data)
-    # data = json.loads(request.data)
-    # for i in enumerate(data['ids']):
-    #     ship_obj.ship_control_list.update({data['ids'][i]:data['control_data'][i]})
+    ship_obj.b_send_control=True
+    data = json.loads(request.data)
+    for i in data['id']:
+        ship_obj.ship_control_dict.update({int(i):1})
     return 'ship_start'
 
-# 控制船运动
+# 控制船停止
 @app.route('/ship_stop', methods=['GET', 'POST'])
 def ship_stop():
     print(request)
-    print(request)
     print('request.data', request.data)
-    # data = json.loads(request.data)
-    # for i in enumerate(data['ids']):
-    #     ship_obj.ship_control_list.update({data['ids'][i]:data['control_data'][i]})
+    ship_obj.b_send_control = True
+    data = json.loads(request.data)
+    for i in data['id']:
+        ship_obj.ship_control_dict.update({int(i):0})
     return 'ship_stop'
 
 class Ship:
-
     def __init__(self):
         self.logger = log.LogHandler('mian')
         self.com_logger = log.LogHandler('com_logger')
 
         # 湖泊像素轮廓点
         self.pix_cnts = None
-        # 当前船号，船位置，船规划行驶点
+
+        # 当前接收到的船号，
         self.online_ship_list = []
 
+
         # 手动控制状态
-        self.ship_control_list={}
+        self.ship_control_dict={}
 
         # 像素位置与经纬度
         self.ship_pix_position_dict = {}
         self.ship_lng_lat_position_dict = {}
+
         # 用户点击像素点
         self.click_pix_points_dict = {}
-        # 用户点击经纬度点
-        self.click_lng_lats_dict = {}
+        # 船配置航点
+        self.config_ship_lng_lats_dict = {}
         # 船剩余电量
         self.ship_dump_energy_dict={}
         # 船速度
         self.ship_speed_dict = {}
+
         # 是否发送所有路径到船
         self.b_send_path = False
+        self.b_send_control=False
+        # 采集点经纬度
+        self.lng_lats_list = []
+
+        if config.port is not None:
+            port = config.port
+            self.serial_obj = com_data.SerialData(
+                port,
+                config.baud,
+                timeout=config.com_timeout,
+                logger=self.com_logger)
+            if not self.serial_obj.uart.isOpen():
+                self.serial_obj.uart.open()
+        elif len(com_data.SerialData.print_used_com()) > 0:
+            port = com_data.SerialData.print_used_com()[0]
+            self.serial_obj = com_data.SerialData(
+                port,
+                config.baud,
+                timeout=config.com_timeout,
+                logger=self.com_logger)
+            if not self.serial_obj.uart.isOpen():
+                self.serial_obj.uart.open()
+        else:
+            self.serial_obj = None
 
     # 必须放在主线程中
     @staticmethod
-    def run_flask():
+    def run_flask(debug=True):
         # app.run(host='192.168.199.171', port=5500, debug=True)
-        app.run(host='0.0.0.0', port=8899, debug=True)
+        app.run(host='0.0.0.0', port=8899, debug=debug)
 
     # 经纬度转像素
     def lng_lat_to_pix(self,lng_lat):
@@ -170,29 +220,37 @@ class Ship:
     def init_cnts_lng_lat_to_pix(self, b_show=False):
         while not os.path.exists('lng_lats.txt'):
             time.sleep(1)
-        lng_lats_list = []
         try:
             with open('lng_lats.txt', 'r') as f:
                 temp_list = f.readlines()
                 for i in temp_list:
                     i = i.strip()
-                    lng_lats_list.append(
+                    self.lng_lats_list.append(
                         [float(i.split(',')[0]), float(i.split(',')[1])])
         except Exception as e:
-            self.logger.error({'lng_lats.txt error':e})
+            self.logger.error({'lng_lats.txt 格式错误':e})
 
-        int_lng_lats = [[int(i[0] * 1000000), int(i[1] * 1000000)]
-                        for i in lng_lats_list]
-        (left_up_x, left_up_y, w, h) = cv2.boundingRect(np.array(int_lng_lats))
+        int_lng_lats_list = [[int(i[0] * 1000000), int(i[1] * 1000000)]
+                        for i in self.lng_lats_list]
+        (left_up_x, left_up_y, w, h) = cv2.boundingRect(np.array(int_lng_lats_list))
         self.left_up_x = left_up_x
         self.left_up_y = left_up_y
         self.logger.info({'(x, y, w, h) ': (left_up_x, left_up_y, w, h)})
-        # 像素到单位缩放
-        self.scale_w = float(w) / config.pix_w
-        self.scale_h = float(h) / config.pix_h
+
+        ## 像素到单位缩放
+        # 等比拉伸
+        if w>=h:
+            self.scale_w = float(w) / config.pix_w
+            self.scale_h = float(w) / config.pix_w
+        else:
+            self.scale_w = float(h) / config.pix_w
+            self.scale_h = float(h) / config.pix_w
+        # 强制拉伸到同样长宽
+        # self.scale_w = float(w) / config.pix_w
+        # self.scale_h = float(h) / config.pix_h
 
         # 经纬度转像素
-        self.pix_cnts = [self.lng_lat_to_pix(i) for i in lng_lats_list]
+        self.pix_cnts = [self.lng_lat_to_pix(i) for i in self.lng_lats_list]
         self.logger.info({'self.pix_cnts': self.pix_cnts})
 
         if b_show:
@@ -235,7 +293,6 @@ class Ship:
             cv2.namedWindow('img')
             # 设置鼠标事件回调
             cv2.setMouseCallback('img', draw_circle)
-            print('22222222222222222222222222222')
             while (True):
                 cv2.imshow('img', img)
                 if cv2.waitKey(1) == ord('q'):
@@ -245,35 +302,50 @@ class Ship:
 
     # 发送串口数据
     def send_com_data(self):
-        self.serial_obj = com_data.SerialData(
-            config.port,
-            config.baud,
-            timeout=config.com_timeout,
-            logger=self.com_logger)
         while True:
-            if len(ship_obj.click_pix_points_dict) <= 0 or not ship_obj.b_send_path:
+            if self.serial_obj is None:
                 time.sleep(1)
+                continue
+            # 发送配置点
+            if not ship_obj.b_send_path:
+                time.sleep(config.com_send_sleep_time)
             else:
-                # 像素转换为经纬度
-                for k, v in ship_obj.click_pix_points_dict.items():
-                    lng = round(
-                        (self.left_up_x + v[0] * self.scale_w) / 1000000.0, 6)
-                    lat = round(
-                        (self.left_up_y + v[1] * self.scale_h) / 1000000.0, 6)
-                    ship_obj.click_lng_lats_dict.update({k: [lng, lat]})
                 # 转换为发送数据
-                com_data_send = 'BB'
-                for k, v in ship_obj.click_lng_lats_dict.items():
-                    com_data_send += com_data_send + '%03d,' % k + \
-                        str(v[0]) + ',' + str(v[1]) + '#'
-                com_data_send += com_data_send + '$'
-                self.serial_obj.send_data(com_data_send)
-            # TODO 等待与手动停止控制
-            # time.sleep()
+                config_data_send = 'BB'
+                self.logger.info({'ship_obj.config_ship_lng_lats_dict':ship_obj.config_ship_lng_lats_dict})
+                for k, values in ship_obj.config_ship_lng_lats_dict.items():
+                    config_data_send += '%03d' % k
+                    for v in values:
+                        config_data_send += ','+str(v[0]) + ',' + str(v[1])
+                    config_data_send += '#'
+                config_data_send += '$'
+                self.logger.info({'com_data_send':config_data_send})
+                self.serial_obj.send_data(config_data_send)
+
+
+                self.b_send_path=False
+
+            # 发送控制数据
+            if not self.b_send_control:
+                pass
+            else:
+                control_data_send = 'BB'
+                self.logger.info({'ship_obj.config_ship_lng_lats_dict':ship_obj.ship_control_dict})
+                for k, v in ship_obj.ship_control_dict.items():
+                    control_data_send += '%03d,' % k + str(v) +'#'
+                control_data_send += '$'
+                self.logger.info({'control_data_send': control_data_send})
+                self.serial_obj.send_data(control_data_send)
+                self.b_send_control = False
+
+            time.sleep(config.com_send_sleep_time)
 
     def get_com_data(self):
         # 读取函数会阻塞 必须使用线程
         while True:
+            if self.serial_obj is None:
+                time.sleep(2)
+                continue
             com_data_read = self.serial_obj.readline()
             # 解析串口发送过来的数据
             if com_data_read is None:
@@ -282,8 +354,9 @@ class Ship:
             # 解析串口发送过来的数据
             try:
                 get_com_data_list = com_data_read.split(',')
-                ship_id = int(get_com_data_list[0])
-                self.online_ship_list.append(ship_id)
+                ship_id = int(get_com_data_list[0][2:])
+                if ship_id not in self.online_ship_list:
+                    self.online_ship_list.append(ship_id)
                 com_lng_lat = [float(get_com_data_list[1]),float(get_com_data_list[2])]
                 # 更新经纬度
                 self.ship_lng_lat_position_dict.update({ship_id:com_lng_lat})
@@ -292,9 +365,9 @@ class Ship:
                 # 更新像素
                 self.ship_pix_position_dict.update({ship_id:com_pix})
                 # 更新电量
-                self.ship_dump_energy_dict.update({ship_id:int(get_com_data_list[3])})
+                self.ship_dump_energy_dict.update({ship_id:float(get_com_data_list[4])})
                 # 更新速度
-                self.ship_speed_dict.update({ship_id:int(get_com_data_list[4])})
+                self.ship_speed_dict.update({ship_id:float(get_com_data_list[3])})
 
             except Exception as e:
                 self.logger.error({'com_data_read error': e})
@@ -302,20 +375,20 @@ class Ship:
 
 if __name__ == '__main__':
     ship_obj = Ship()
-    init_cnts_lng_lat_to_pix = threading.Thread(target=ship_obj.init_cnts_lng_lat_to_pix)
-    # get_com_thread = threading.Thread(target=ship_obj.get_com_data)
-    # send_com_thread = threading.Thread(target=ship_obj.send_com_data)
-
-    init_cnts_lng_lat_to_pix.setDaemon(True)
+    init_cnts_lng_lat_to_pix = threading.Thread(target=ship_obj.init_cnts_lng_lat_to_pix,args=(False,))
+    get_com_thread = threading.Thread(target=ship_obj.get_com_data)
+    send_com_thread = threading.Thread(target=ship_obj.send_com_data)
+    #
+    # init_cnts_lng_lat_to_pix.setDaemon(True)
     # get_com_thread.setDaemon(True)
     # send_com_thread.setDaemon(True)
-
+    #
     init_cnts_lng_lat_to_pix.start()
-    # get_com_thread.start()
-    # send_com_thread.start()
+    get_com_thread.start()
+    send_com_thread.start()
 
-    init_cnts_lng_lat_to_pix.join()
+    # init_cnts_lng_lat_to_pix.join()
     # get_com_thread.join()
     # send_com_thread.join()
-
-    ship_obj.run_flask()
+    # run_flask()
+    ship_obj.run_flask(debug=False)
