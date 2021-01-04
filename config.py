@@ -18,11 +18,14 @@ lng_lats = [[114.431193,30.525967],
 pix_h,pix_w = 2000,2000
 
 # 串口端口号
-port = 'com8'
+port = 'com4'
+# port = None
 #串口波特率
-baud=115200
+baud=9600
 #串口超时
 com_timeout=0.5
 
+# 串口发送间隔
+com_send_sleep_time=0.5
 
 

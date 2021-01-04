@@ -2,6 +2,7 @@
 串口数据收发
 """
 import serial
+from serial.tools import list_ports
 import binascii
 import time
 import copy
@@ -29,6 +30,8 @@ class SerialData:
             self.uart = serial.Serial(
                 self.port, self.baud, timeout=self.timeout)
             # 判断是否打开成功
+            if not (self.uart.is_open):
+                self.uart.open()
             if not (self.uart.is_open):
                 self.logger.error('无法打开串口')
         except Exception as e:
@@ -64,9 +67,12 @@ class SerialData:
 
     # 打印可用串口列表
     @staticmethod
-    def Print_Used_Com():
-        port_list = list(serial.tools.list_ports.comports())
+    def print_used_com():
+        port_list = list(list_ports.comports())
+        return_port_list = [i.name for i in port_list]
         print(port_list)
+        print(return_port_list)
+        return return_port_list
 
     # 接收指定大小的数据
     # 从串口读size个字节。如果指定超时，则可能在超时后返回较少的字节；如果没有指定超时，则会一直等到收完指定的字节数。
@@ -126,15 +132,14 @@ class SerialData:
             except Exception as e:
                 print("异常报错：", e)
 
-
-if __name__ == '__main__':
+def main():
     import config
 
     serial_obj = SerialData(
         'com8',
         115200,
         timeout=1 /
-        config.com2pi_interval,
+                config.com_timeout,
         logger=logger)
 
     def get_com_data():
@@ -168,7 +173,7 @@ if __name__ == '__main__':
         count = 0
         # 切换秒数
         change_s = 5
-        change_count = config.pi2com_interval * change_s
+        change_count = config.com_timeout * change_s
         while True:
             if count < change_count:
                 i = 0
@@ -189,7 +194,7 @@ if __name__ == '__main__':
             logger.info('move_direction: ' + data_send_com)
             logger.info('i: ' + str(i))
             count += 1
-            time.sleep(1 / config.pi2com_interval)
+            time.sleep(config.com_timeout)
 
     t1 = Thread(target=get_com_data)
     t2 = Thread(target=send_com_data)
@@ -198,3 +203,7 @@ if __name__ == '__main__':
     t1.join()
     t2.join()
     # print(str(obj.Read_Line())[2:-5])
+
+
+if __name__ == '__main__':
+    SerialData.print_used_com()
