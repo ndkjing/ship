@@ -1,0 +1,1 @@
+2021-01-13 20:40:16,152 com_data.py[line:36] ERROR {'串口连接异常：': SerialException("could not open port 'COM4': FileNotFoundError(2, '系统找不到指定的文件。', None, 2)")}

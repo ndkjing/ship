@@ -1,5 +1,8 @@
+import os
+CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
+ROOT_PATH = os.path.dirname(CURRENT_PATH)
 
-
+log_path = os.path.join(ROOT_PATH, 'log')
 # 采集经纬度
 lng_lats = [[114.431193,30.525967],
             [114.432802,30.525247],
@@ -18,10 +21,10 @@ lng_lats = [[114.431193,30.525967],
 pix_h,pix_w = 2000,2000
 
 # 串口端口号
-port = 'com4'
-# port = None
+# port = 'com4'
+port = None
 #串口波特率
-baud=9600
+baud=2400
 #串口超时
 com_timeout=0.5
 

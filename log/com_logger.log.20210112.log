@@ -1,0 +1,1 @@
+2021-01-12 16:31:35,001 com_data.py[line:36] ERROR {'串口连接异常：': SerialException("Cannot configure port, something went wrong. Original message: PermissionError(13, '设备不识别此命令。', None, 22)")}

@@ -3,12 +3,10 @@
 """
 import serial
 from serial.tools import list_ports
-import binascii
 import time
-import copy
 from threading import Thread
 
-import log
+from utils import log
 
 logger = log.LogHandler('test_com')
 
@@ -70,7 +68,7 @@ class SerialData:
     def print_used_com():
         port_list = list(list_ports.comports())
         return_port_list = [i.name for i in port_list]
-        print(port_list)
+        # print(port_list)
         print(return_port_list)
         return return_port_list
 
