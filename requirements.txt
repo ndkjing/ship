@@ -1,0 +1,6 @@
+pyserial
+serial
+pyinstaller
+flask-cors
+flask
+opencv-python

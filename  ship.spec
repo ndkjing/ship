@@ -30,4 +30,4 @@ exe = EXE(pyz,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=True , icon='D:\\pythonProject\\ship\\statics\\planet.ico')
+          console=True , icon='F:\\pythonProject\\ship\\statics\\planet.ico')

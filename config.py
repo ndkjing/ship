@@ -24,11 +24,12 @@ pix_h,pix_w = 2000,2000
 # port = 'com4'
 port = None
 #串口波特率
-baud=2400
+baud=9600
 #串口超时
 com_timeout=0.5
 
 # 串口发送间隔
 com_send_sleep_time=0.5
 
-
+tcp_server_ip = '127.0.0.1'
+tcp_server_port = 9090
