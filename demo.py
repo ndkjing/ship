@@ -9,6 +9,4 @@ print('12'.split(' '))
 print('12 23'.split(' '))
 print('12 23    123'.split(' '))
 print('12 23    123,231'.split(' '))
-
-
 print(int(' '))

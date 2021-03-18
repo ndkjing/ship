@@ -28,6 +28,7 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
+# CORS(app,supports_credentials=False)
 
 log1 = logging.getLogger('xxl')
 log1.disabled = True
@@ -45,6 +46,7 @@ def index():
 
 
 logger = log.LogHandler('main')
+
 
 
 # 湖轮廓像素位置
@@ -70,6 +72,7 @@ def pool_cnts():
         if ship_obj.pix_cnts is None:
             return '初始经纬度像素点未生成'
         # {'data':'391, 599 745, 539 872, 379 896, 254 745, 150 999, 63 499, 0 217, 51  66, 181 0, 470'}
+
         else:
             str_pix_points = ''
             for index, value in enumerate(ship_obj.pix_cnts):
@@ -183,8 +186,6 @@ def ship_path():
     # logger.debug({'config_ship_lng_lats_dict':ship_obj.config_ship_lng_lats_dict})
     return 'ship_path'
 
-
-# 发送所有配置路径到船并全部启动启动
 @app.route('/send_path', methods=['GET', 'POST'])
 def send_path():
     print(request)
@@ -192,7 +193,6 @@ def send_path():
     for i in ship_obj.online_ship_list:
         ship_obj.ship_control_dict.update({int(i): 1})
     return 'send_path'
-
 
 # 控制船启动
 @app.route('/ship_start', methods=['GET', 'POST'])
@@ -204,7 +204,6 @@ def ship_start():
         ship_obj.ship_control_dict.update({int(i): 1})
     return 'ship_start'
 
-
 # 控制船停止
 @app.route('/ship_stop', methods=['GET', 'POST'])
 def ship_stop():
@@ -214,7 +213,6 @@ def ship_stop():
     for i in data['id']:
         ship_obj.ship_control_dict.update({int(i): 0})
     return 'ship_stop'
-
 
 class Ship:
     def __init__(self):
@@ -365,7 +363,6 @@ class Ship:
     # 发送串口数据
     def send_com_data(self):
         while True:
-            # print('self.b_send_first_point',self.b_send_first_point)
             if self.serial_obj is None:
                 time.sleep(1)
                 continue
@@ -511,6 +508,7 @@ class Ship:
                                     self.logger.info({'speed': speed*config.speed_scale})
                     # 更新朝向角度
                     self.ship_direction_dict.update({ship_id: float(get_com_data_list[5])})
+
             except Exception as e:
                 self.logger.error({'com_data_read error': e})
 
@@ -592,6 +590,7 @@ if __name__ == '__main__':
     get_com_thread.start()
     send_com_thread.start()
     tcp_get_thread.start()
+
 
     # init_cnts_lng_lat_to_pix.join()
     # get_com_thread.join()

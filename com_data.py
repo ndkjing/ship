@@ -68,8 +68,6 @@ class SerialData:
     def print_used_com():
         port_list = list(list_ports.comports())
         return_port_list = [i.name for i in port_list]
-        # print(port_list)
-        print(return_port_list)
         return return_port_list
 
     # 接收指定大小的数据
