@@ -225,13 +225,13 @@ class Ship:
         self.pix_cnts = None
         # 当前接收到的船号，
         self.online_ship_list = []
-        # 手动控制状态
+        # 手动控制状态 存储格式 船号：控制 （0 停止  1 启动）
         self.ship_control_dict = {}
         # 像素位置与经纬度
         self.ship_pix_position_dict = {}
         self.ship_lng_lat_position_dict = {}
         # 用户点击像素点
-        self.click_pix_points_dict = {}
+        # self.click_pix_points_dict = {}
         # 船配置航点
         self.config_ship_lng_lats_dict = {}
         # 船配置航点 像素坐标
