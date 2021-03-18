@@ -33,3 +33,5 @@ com_send_sleep_time = 0.5
 
 tcp_server_ip = '127.0.0.1'
 tcp_server_port = 9090
+
+speed_scale = 1.5

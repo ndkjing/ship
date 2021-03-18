@@ -78,7 +78,7 @@ def pool_cnts():
                 else:
                     str_pix_points += str(value[0]) + ',' + str(value[1]) + ' '
             return_json = json.dumps({'data': str_pix_points})
-            print('pool_cnts', return_json)
+            print('return_json pool_cnts', return_json)
             return return_json
 
 
@@ -223,17 +223,13 @@ class Ship:
 
         # 湖泊像素轮廓点
         self.pix_cnts = None
-
         # 当前接收到的船号，
         self.online_ship_list = []
-
         # 手动控制状态
         self.ship_control_dict = {}
-
         # 像素位置与经纬度
         self.ship_pix_position_dict = {}
         self.ship_lng_lat_position_dict = {}
-
         # 用户点击像素点
         self.click_pix_points_dict = {}
         # 船配置航点
@@ -246,13 +242,11 @@ class Ship:
         self.ship_speed_dict = {}
         # 船朝向
         self.ship_direction_dict = {}
-
         # 是否发送所有路径到船
         self.b_send_path = False
         self.b_send_control = False
         # 采集点经纬度
         self.lng_lats_list = []
-
         # 记录当前存在的串口
         self.init_com_list = com_data.SerialData.print_used_com()
         self.serial_obj = None
@@ -262,7 +256,8 @@ class Ship:
     @staticmethod
     def run_flask(debug=True):
         # app.run(host='192.168.199.171', port=5500, debug=True)
-        app.run(host='0.0.0.0', port=8899, debug=debug)
+        app.run(host='127.0.0.1', port=8899, debug=debug)
+        # app.run(host='0.0.0.0', port=8899, debug=debug)
 
     # 经纬度转像素
     def lng_lat_to_pix(self, lng_lat):
@@ -470,7 +465,6 @@ class Ship:
                 time.sleep(3)
                 continue
             com_data_read = self.serial_obj.readline()
-
             # 解析串口发送过来的数据
             if com_data_read is None:
                 continue
@@ -514,7 +508,7 @@ class Ship:
                                     last_lng_lat = copy.deepcopy(com_lng_lat)
                                     last_read_time = time.time()
                                     self.ship_speed_dict.update({ship_id: speed})
-                                    self.logger.info({'speed': speed})
+                                    self.logger.info({'speed': speed*config.speed_scale})
                     # 更新朝向角度
                     self.ship_direction_dict.update({ship_id: float(get_com_data_list[5])})
             except Exception as e:
@@ -525,7 +519,6 @@ class TcpClient:
     def __init__(self):
         self.target_host = config.tcp_server_ip  # 服务器端地址
         self.target_port = config.tcp_server_port  # 必须与服务器的端口号一致
-        # self.client.connect((self.target_host, self.target_port))
         # self.connect_server()
 
     def connect_server(self):
@@ -535,7 +528,7 @@ class TcpClient:
                 self.client.connect((self.target_host, self.target_port))
                 break
             except Exception as e:
-                print('error', e)
+                print('connect_server error', e)
                 continue
 
     def send(self, data):
