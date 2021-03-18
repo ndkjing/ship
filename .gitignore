@@ -2,3 +2,7 @@
 .idea/
 .git
 .git/
+.build
+.build/
+.log
+.log/
