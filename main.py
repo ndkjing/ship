@@ -1,6 +1,7 @@
 import com_data
 from utils import log
 from utils import lng_lat_calculate
+from utils import shirink
 import config
 import socket
 
@@ -136,26 +137,19 @@ def online_ship():
 @app.route('/get_all_config', methods=['GET', 'POST'])
 def get_all_config():
     print(request, 'get_all_config')
-    if b_test:
-        random_data = random.randint(1, 10)
-        return_data = {
-            # 船号
-            "ids": list(ship_obj.config_ship_pix_points_dict.keys()),
-            # 船像素信息数组
-            "pix_postion": list(ship_obj.config_ship_pix_points_dict.values()),
-        }
-        logger.info({'get_all_config': return_data})
-        return json.dumps(return_data)
-
-    else:
-        return_data = {
-            # 船号
-            "ids": list(ship_obj.config_ship_pix_points_dict.keys()),
-            # 船像素信息数组
-            "pix_postion": list(ship_obj.config_ship_pix_points_dict.values()),
-        }
-        logger.info({'get_all_config': return_data})
-        return json.dumps(return_data)
+    ids = []
+    pix_postion = []
+    for i in ship_obj.config_ship_pix_points_dict.keys():
+        ids.append(i)
+        pix_postion.append(ship_obj.config_ship_pix_points_dict.get(i))
+    # 船像素信息数组
+    return_data = {
+        # 船号
+        "ids": ids,
+        "pix_postion": pix_postion,
+    }
+    logger.info({'get_all_config': return_data})
+    return json.dumps(return_data)
 
 
 # 发送一条船配置路径
@@ -345,19 +339,27 @@ class Ship:
         self.left_up_x = left_up_x
         self.left_up_y = left_up_y
         self.logger.info({'(x, y, w, h) ': (left_up_x, left_up_y, w, h)})
-
-        ## 像素到单位缩放
-        # 等比拉伸
+        # 像素到单位缩放 等比拉伸
         if w >= h:
             self.scale_w = float(w) / config.pix_w
             self.scale_h = float(w) / config.pix_w
         else:
             self.scale_w = float(h) / config.pix_w
             self.scale_h = float(h) / config.pix_w
-        # 经纬度转像素
-        self.pix_cnts = [self.lng_lat_to_pix(i) for i in self.lng_lats_list]
+        b_shirink = True
+        if b_shirink:
+            # 收缩
+            pix_cnts = [self.lng_lat_to_pix(i) for i in self.lng_lats_list]
+            poly = np.array(pix_cnts)
+            shrink_poly = shirink.shrink_polygon(poly, 0.9)
+            shrink_poly_list_temp = shrink_poly.tolist()
+            self.pix_cnts = []
+            for i in shrink_poly_list_temp:
+                self.pix_cnts.append([int(i[0]), int(i[1])])
+        else:
+            # 经纬度转像素
+            self.pix_cnts = [self.lng_lat_to_pix(i) for i in self.lng_lats_list]
         self.logger.info({'self.pix_cnts': self.pix_cnts})
-
         if b_show:
             img = np.zeros((config.pix_h, config.pix_w, 3), dtype=np.uint8)
             cv2.circle(img, (int(config.pix_w / 2),

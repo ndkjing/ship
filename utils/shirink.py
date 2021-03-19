@@ -59,6 +59,7 @@ def shrink_polygon(polygon: np.array, r):
         shrinked_polygon.append(Qi)
     return np.asarray(shrinked_polygon)
 
+
 if __name__ == "__main__":
     poly = np.array([[0, 0], [0, 1], [0.5, 2], [1, 1], [1, 0]])
     perimeter = Perimeter(poly)
