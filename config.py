@@ -30,6 +30,8 @@ com_timeout = 0.5
 
 # 串口发送间隔
 com_send_sleep_time = 0.5
+# 本地服务端口
+web_port = 8899
 
 tcp_server_ip = '127.0.0.1'
 tcp_server_port = 9090
