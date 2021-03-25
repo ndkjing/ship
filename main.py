@@ -39,7 +39,7 @@ app.logger.disabled = True
 
 CORS(app, resources=r'/*')
 # 测试使用
-b_test = True
+b_test = config.test
 
 
 @app.route('/')
@@ -302,7 +302,8 @@ class Ship:
         """
         int_lng_lat = [int(lng_lat[0] * 1000000), int(lng_lat[1] * 1000000)]
         int_lng_lats_offset = [int_lng_lat[0] - self.left_up_x, int_lng_lat[1] - self.left_up_y]
-        int_lng_lats_pix = [int(int_lng_lats_offset[0] / self.scale_w), int(int_lng_lats_offset[1] / self.scale_h)]
+        # int_lng_lats_pix = [int(int_lng_lats_offset[0] / self.scale_w), int(int_lng_lats_offset[1] / self.scale_h)]
+        int_lng_lats_pix = [int(int_lng_lats_offset[0] / self.scale_w), config.pix_h - int(int_lng_lats_offset[1] / self.scale_h)]
         # int_lng_lats_pix = [int(int_lng_lats_offset[0] / self.scale_w),
         #                     config.pix_h - int(int_lng_lats_offset[1] / self.scale_h)]
         return int_lng_lats_pix
