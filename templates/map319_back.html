@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    html,
+    body{
+      width: 100%;
+      height: 100%;
+    }
+
+    button {
+      width: 3rem;
+      height: 2rem;
+      margin: 0 auto;
+      box-sizing: border-box;
+      border: 1px solid #c6e2ff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: center;
+      color: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      white-space: nowrap;
+      user-select: none;
+      background-color: #108ee9;
+      cursor: pointer;
+    }
+    button:hover{
+      background-color: #66b1ff;
+      border-color: #66b1ff;
+    }
+    .container{
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .map{
+      width: 600px;
+      height: 600px;
+      background-image: url({{ url_for('static', filename='1.png') }});
+    }
+    .data{
+      width: 310px;
+      height: 75vh;
+      margin-left: 10px;
+    }
+    .control{
+      box-sizing: border-box;
+      padding-left: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+
+    #shipSelect {
+      width: 110px;
+      height: 30px;
+      font-size: 1.8rem;
+    }
+
+    #testSelect {
+      width: 110px;
+      height: 30px;
+      font-size: 1.8rem;
+    }
+  </style>
+
+</head>
+
+<body>
+  <div id="list"></div>
+  <div class="container">
+    <div class="map">
+      <svg id="map" width="600" height="600" xmlns="http://www.w3.org/2000/svg">
+        <!-- <path d="M20 20 m 0 0 h 320 m -320 0 m 0 20 h 320 m -320  0 m 0 20 h 320" stroke="blue" stroke-width="2" /> -->
+        <!-- <polygon points="220,100 300,210 170,250 123,234 0,0" style="fill:#cccccc;
+          stroke:#000000;stroke-width:1" /> -->
+    
+      </svg>
+    </div>
+    <div class="data"></div>
+  </div>
+  <div class="control">
+    <!-- <input id="input" /> -->
+    <select id="shipSelect">
+  
+    </select>
+    <button id="button1">确定</button>
+    <button id="button2">撤销</button>
+    <button id="button3">停止</button>
+    <button id="button4">启动</button>
+    <button id="button5">全部启动</button>
+    <button id="button8">保存</button>
+    <button id="button9">加载</button>
+    <button id="button10">设置返航</button>
+    <button id="button11">返航</button>
+    <button id="button12">置为边界</button>
+      <select id="testSelect">
+  
+      </select>
+      <button style="margin-left:10px;" id="button6">打开</button>
+      <button id="button7">关闭</button>
+  </div>
+
+
+
+
+
+
+  <script>
+    const map = document.getElementById("map");
+    const shipSelect = document.getElementById("shipSelect")
+    const button1 = document.getElementById("button1")
+    const button2 = document.getElementById("button2")
+    const button3 = document.getElementById("button3")
+    const button4 = document.getElementById("button4")
+    const button5 = document.getElementById("button5")
+    const button6 = document.getElementById("button6")
+    const button7 = document.getElementById("button7")
+    const button8 = document.getElementById("button8")
+    const button9 = document.getElementById("button9")
+    const button10 = document.getElementById("button10")
+    const button11 = document.getElementById("button11")
+    const button12 = document.getElementById("button12")
+    const list = document.getElementById("list")
+    let pool //湖轮廓
+    const arrList = [] //dom节点
+    let node = [] //像素坐标点
+    let prePoint = [] //船历史坐标
+    let preList = []
+    let tDivPreList = []
+    let baseUrl = "http://192.168.8.19:8899"
+    let pointColor
+    let selectEle
+
+
+    //初始化
+    window.onload = function () {
+      //select
+
+      fetch(`${baseUrl}/get_coms`, {
+        method: "GET",
+        mode: 'cors',
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then(data => {
+
+
+
+          //drawLine('M20 0 L10 10 L220 333')
+          selectEle = document.getElementById("testSelect");
+          data.forEach((ele, id) => {
+            var optionItem = document.createElement("option");
+            optionItem.setAttribute("value", ele);
+            var newContent = document.createTextNode(ele);
+            optionItem.appendChild(newContent);
+            selectEle.add(optionItem, id);
+
+          })
+
+
+
+
+
+        });
+
+        fetch(`${baseUrl}/get_ship_list`, {
+
+        }).then((response)=>{
+          return response.json();
+        }).then((data)=>{
+          // console.log(data)
+          selectEle = document.getElementById("shipSelect");
+          data.ids.forEach((ele, id) => {
+            var optionItem = document.createElement("option");
+            optionItem.setAttribute("value", ele);
+            var newContent = document.createTextNode(ele);
+            optionItem.appendChild(newContent);
+            selectEle.add(optionItem, id);
+          })
+        })
+
+
+
+      //document.documentElement.scrollTop = localStorage.getItem("deep")
+
+      //请求湖泊轮廓像素点接口
+      fetch(`${baseUrl}/pool_cnts`, {
+        method: "GET",
+        mode: 'cors',
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then(data => {
+          draw(map, data.data, "fill:transparent;stroke:#000000; stroke-width: 2")
+          //drawLine('M20 0 L10 10 L220 333')
+        });
+      // button1.click()
+      get_all_config()
+      //ship()
+      setInterval(ship, 1000)
+
+
+
+
+      //点击坐标
+      map.onmousedown = function (ev) {
+
+        var oEvent = ev || event;
+
+        var oDiv = document.createElement('div');
+
+        // console.log(arrList)
+
+        oDiv.style.left = oEvent.pageX + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+
+        oDiv.style.top = oEvent.pageY + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+
+        oDiv.style.border = '1px solid #FF0000'; // 设置边框
+
+        oDiv.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+
+        oDiv.style.width = '1px'; // 指定宽度
+
+        oDiv.style.height = '1px'; // 指定高度
+
+        arrList.push(oDiv)
+
+        node.push([oDiv.style.left, oDiv.style.top])
+
+        document.body.appendChild(oDiv);
+
+      }
+
+    }
+
+    // -------------
+
+
+
+    map.addEventListener("click", (e) => {
+      // input.value = `x:${e.offsetX} y:${e.offsetY}`
+      // console.log(e.clientX, e.clientY, e.offsetX, e.offsetY)
+    })
+
+
+    // -------------
+
+    //实时船的位置
+    function ship() {
+      fetch(`${baseUrl}/online_ship`, {
+        method: "GET",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+
+      }).then((response) => {
+        return response.json();
+      })
+        .then(data => {
+          // console.log(data.home_pix_lng_lat[0])
+          if(data.home_pix_lng_lat.length > 0){
+            if(document.getElementById("back")){
+            Img = document.getElementById("back")
+            Img.style.left = data.home_pix_lng_lat[0] + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+            Img.style.top = data.home_pix_lng_lat[1] + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+          }
+          else{
+            var Img = document.createElement('img');
+            Img.id = "back"
+            Img.style.left = data.home_pix_lng_lat[0] + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+            Img.style.top = data.home_pix_lng_lat[1] + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+            Img.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+            Img.style.width = "20px"
+            Img.style.height = "20px"
+            Img.src = "./statics/home.png"
+            document.body.appendChild(Img);
+          }
+          }
+          pointColor = data.points_status
+          const length = data.dump_energy.length
+          const shipList = []
+          while (prePoint.length != 0) {
+            document.body.removeChild(prePoint.pop())
+
+          }
+          while (preList.length != 0) {
+            document.body.removeChild(preList.pop())
+
+          }
+          while (tDivPreList.length != 0) {
+            document.getElementsByClassName("data")[0].removeChild(tDivPreList.pop())
+
+          }
+
+
+          for (i = 0; i < length; i++) {
+            const ele = {}
+            ele.dump_energy = data.dump_energy[i]
+            ele.distance = data.distance[i]
+            ele.speed = data.speed[i]
+            ele.config_path = data.config_path[i]
+            ele.ids = data.ids[i]
+            ele.direction = data.direction[i]
+            ele.pix_postion = data.pix_postion[i]
+            shipList.push(ele)
+            var oDiv = document.createElement('div');
+            oDiv.style.left = ele.pix_postion[0] + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+            oDiv.style.top = ele.pix_postion[1] + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+            // oDiv.style.backgroundColor = '#108ee9'; // 设置边框
+            oDiv.style.borderLeft = '20px solid transparent'; // 设置边框
+            oDiv.style.borderRight = '20px solid transparent'; // 设置边框
+            // oDiv.style.borderTop = 'transparent'; // 设置边框
+            oDiv.style.borderBottom = '60px solid #108ee9'; // 设置边框
+            
+            oDiv.style.transform = `rotate(${ele.direction}deg)`
+            oDiv.style.fontSize = '12px';
+            // oDiv.style.textAlign = 'center';
+            oDiv.style.lineHeight = "80px"
+            oDiv.style.color = 'purple';
+            oDiv.innerHTML = `${ele.ids}`
+            //oDiv.style.backgroundImage = "./top.png"
+            oDiv.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+            oDiv.style.width = '0'; // 指定宽度
+            oDiv.style.height = '0'; // 指定高度
+            preList.push(oDiv)
+
+            document.body.appendChild(oDiv);
+
+            drawShipList(ele)
+          }
+
+          // console.log(data.dump_energy)
+          // console.log(data.speed)
+          // console.log(data.config_path)
+          // console.log(data.ids)
+          // console.log(data.pix_postion)
+          //console.log(shipList)
+
+        });
+    }
+
+
+
+    //画线
+    function drawLine(line) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', line);
+      path.setAttribute("stroke", "blue")
+      path.setAttribute("fill", "transparent")
+      path.setAttribute("z-index", "100")
+      path.setAttribute("stroke-width", "2")
+      map.appendChild(path);
+    }
+
+    //画地图
+    function draw(parent, node, style) {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', node);
+      polygon.setAttribute('style', style);
+      parent.appendChild(polygon);
+
+    }
+    //船的列表
+    function drawShipList(ele) {
+      var tDiv = document.createElement('div');
+
+
+      tDiv.style.backgroundColor = '#108ee9'; // 设置边框
+
+      tDiv.style.fontSize = '12px'; // 设置边框
+      tDiv.className = "text"
+      // oDiv.style.textAlign = 'center'; // 设置边框
+
+      tDiv.style.color = '#fff'; // 设置边框
+
+      tDiv.innerHTML = `船号${ele.ids}--电量${ele.dump_energy}--距离${ele.distance}--速度${ele.speed}--路径${ele.config_path}`
+
+      tDiv.style.width = '300px';
+
+      tDiv.style.height = '20px';
+      tDiv.style.display = 'flex';
+      tDiv.style.justifyContent = 'center'; // 指定高度
+      tDiv.style.alignItems = 'center'; // 指定高度
+      DataDiv = document.getElementsByClassName("data")[0]
+      DataDiv.appendChild(tDiv);
+      tDivPreList.push(tDiv)
+    }
+
+    function get_all_config() {
+      setInterval(() => {
+        fetch(`${baseUrl}/get_all_config`, {
+          method: "GET",
+          mode: 'cors',
+        })
+          .then((response) => {
+            return response.json();
+          })
+          .then(data => {
+            //console.log("asd", data, pointColor)
+
+
+
+            let id = 0
+            // console.log(data)
+            data.pix_postion.forEach((ele, id1) => {
+
+              let str = ''
+              ele.forEach((ele, id2) => {
+                // console.log("AAA", id1, id2)
+                // console.log("???", pointColor[data.ids[id1]][id2])
+                if (pointColor[data.ids[id1]][id2] == 0) {
+                  point(data.ids[id], ele[0], ele[1])
+                } else {
+                  point2(data.ids[id], ele[0], ele[1])
+                }
+
+
+                //船对应的数据  pointColor[data.ids[id1]][id2]
+
+                // -----
+                //console.log("asd", ele)
+                // console.log("sss", data.ids[id])
+
+
+
+                if (str.length == 0) {
+                  str = str + `M${ele[0]} ${ele[1]} `
+                } else {
+                  str = str + `L${ele[0]} ${ele[1]} `
+                }
+              })
+              // console.log(str)
+
+              drawLine(str)
+              id = id + 1
+              str = ""
+
+            })
+          });
+
+      }, 2000)
+
+
+    }
+
+
+
+
+    //画点
+    function point(id, x, y) {
+      var oDiv = document.createElement('div');
+      oDiv.style.left = x + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+      oDiv.style.top = y + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+      oDiv.style.border = '5px solid #FF0000'; // 设置边框
+      oDiv.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+      oDiv.style.width = '5px'; // 指定宽度
+      oDiv.style.height = '5px'; // 指定高度
+      oDiv.style.color = 'purple'; // 指定宽度
+      oDiv.innerHTML = `${id}`
+      document.body.appendChild(oDiv);
+    }
+
+    //画点
+    function point2(id, x, y) {
+      var oDiv = document.createElement('div');
+      oDiv.style.left = x + 'px';  // 指定创建的DIV在文档中距离左侧的位置
+      oDiv.style.top = y + 'px';  // 指定创建的DIV在文档中距离顶部的位置
+      oDiv.style.border = '5px solid #108ee9'; // 设置边框
+      oDiv.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+      oDiv.style.width = '5px'; // 指定宽度
+      oDiv.style.height = '5px'; // 指定高度
+      oDiv.style.color = 'purple'; // 指定宽度
+      oDiv.innerHTML = `${id}`
+      document.body.appendChild(oDiv);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //  ------------ //
+
+
+    button1.onclick = function () {
+      // console.log(shipSelect.value)
+
+      while (arrList.length != 0) {
+        const div = arrList.pop()
+        const res = document.body.removeChild(div)
+
+      }
+
+      fetch(`${baseUrl}/ship_path`, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "id": shipSelect.value,
+          "data": [...node]
+        })
+      }).then(res => {
+        node = []
+        get_all_config()
+      window.location.reload()
+      })
+
+
+
+
+    }
+    button2.onclick = function () {
+      node = []
+      const div = arrList.pop()
+
+      const res = document.body.removeChild(div)
+
+      arrList.forEach(ele => {
+        ele = [ele.style.left, ele.style.top]
+        node.push(ele)
+      })
+      // console.log(node)
+      if (res) { alert("成功") } else { alert("失败") }
+    }
+
+    button3.onclick = function () {
+      fetch(`${baseUrl}/ship_stop`, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "id": shipSelect.value
+
+        })
+      }).then(() => {
+
+      })
+
+    }
+    button4.onclick = function () {
+      fetch(`${baseUrl}/ship_start`, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          "id": shipSelect.value
+        })
+      }).then(() => {
+
+      })
+
+    }
+
+    button5.onclick = function () {
+      fetch(`${baseUrl}/send_path`, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify()
+      }).then(() => {
+
+      })
+
+    }
+
+
+    button6.onclick = function () {
+      // console.log(selectEle.value)
+      fetch(`${baseUrl}/open_com`, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(
+          selectEle.value
+        )
+      }).then(() => {
+
+      })
+
+    }
+    button7.onclick = function () {
+      fetch(`${baseUrl}/close_com`, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(selectEle.value)
+      }).then(() => {
+
+      })
+
+    }
+    button8.onclick = function(){
+      fetch(`${baseUrl}/save_ship_path`,{
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({"id":shipSelect.value})
+      })
+    }
+
+    button9.onclick = function(){
+      fetch(`${baseUrl}/load_ship_path`,{
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({"id":shipSelect.value})
+      }).then(() => {
+
+})
+    }
+
+    button10.onclick = function(){
+      // if(document.getElementById("back")){
+      //   Img = document.getElementById("back")
+      //   Img.style.left = node[0][0];  // 指定创建的DIV在文档中距离左侧的位置
+      //   Img.style.top = node[0][1];  // 指定创建的DIV在文档中距离顶部的位置
+      // }
+      // else{
+      //   var Img = document.createElement('img');
+      //   Img.id = "back"
+      //   Img.style.left = node[0][0];  // 指定创建的DIV在文档中距离左侧的位置
+      //   Img.style.top = node[0][1];  // 指定创建的DIV在文档中距离顶部的位置
+      //   Img.style.position = 'absolute'; // 为新创建的DIV指定绝对定位
+      //   Img.style.width = "20px"
+      //   Img.style.height = "20px"
+      //   Img.src = "./home.png"
+      //   document.body.appendChild(Img);
+      // }
+      if(node.length){
+        fetch(`${baseUrl}/set_home_point`,{
+          method: "POST",
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            "lng_lat":[...node]
+          })
+        }).then(()=>{
+          node = []
+          const div = arrList.pop()
+  
+          const res = document.body.removeChild(div)
+  
+          arrList.forEach(ele => {
+            ele = [ele.style.left, ele.style.top]
+            node.push(ele)
+          })
+          get_all_config()
+        })
+      }
+    }
+
+
+    button11.onclick = function(){
+      fetch(`${baseUrl}/back_home_point`,{
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({"id":shipSelect.value})
+      }).then(()=>{
+
+      })
+    }
+
+    button12.onclick = function(){
+      fetch(`${baseUrl}/set_boundary`,{
+        method: "POST",
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({"id":shipSelect.value})
+      }).then(()=>{
+
+      })
+    }
+
+
+
+
+
+
+
+  </script>
+</body>
+
+</html>
